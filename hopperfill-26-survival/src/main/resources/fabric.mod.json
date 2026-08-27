@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "hopperfill",
+  "version": "${version}",
+  "name": "HopperFill",
+  "description": "HopperFill 漏斗填充模组 | 木锄圈选自动填充（生存逐 tick 渐进 + 创造一键），/hf scan/fill/give/set 指令",
+  "authors": [
+    "zijlo"
+  ],
+  "contact": {
+    "repo": "https://github.com/zijlo/HopperFill"
+  },
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.zijlo.hopperfill.HopperFillMod"
+    ],
+    "client": [
+      "com.zijlo.hopperfill.client.HopperFillClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.6",
+    "minecraft": "${minecraft_dependency}",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
