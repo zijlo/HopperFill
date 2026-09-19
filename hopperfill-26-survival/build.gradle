@@ -11,7 +11,7 @@ base {
 }
 
 // 发布产物名：hopperfill-<mod_version>-fabric-<artifact_suffix>.jar
-// 例：hopperfill-4.0.1-fabric-mc26.x.jar。逐版本构建时把 gradle.properties 里的
+// 例：hopperfill-4.0.1-fabric-mc26.1.x.jar。逐版本构建时把 gradle.properties 里的
 // artifact_suffix 改成 mc26.1.1 即可得到对应小版本的产物名。
 // 注意：26 系列走非混淆的 net.fabricmc.fabric-loom，最终产物由 jar 任务直接产出，没有 remapJar。
 def artifactFileName = "${project.archives_base_name}-${project.mod_version}-fabric-${project.artifact_suffix}.jar"

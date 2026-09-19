@@ -14,7 +14,7 @@
 ./gradlew build          # 需 JDK 25
 ```
 
-产物：`build/libs/hopperfill-4.0.1-fabric-mc26.x.jar`
+产物：`build/libs/hopperfill-4.0.1-fabric-mc26.1.x.jar`
 
 需要 26.1 / 26.1.1 / 26.1.2 / 26.2 的单版本包时，用 `build-26x.sh` 构建。
 

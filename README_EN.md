@@ -65,7 +65,7 @@ Any error along the way (multi-item slice / non-stackable items / broken hopper 
 | Minecraft series | File | Java |
 |---|---|---|
 | 1.21.11 – 1.21.x | `hopperfill-4.0.1-fabric-mc1.21.x.jar` | 21 |
-| 26.1 and above | `hopperfill-4.0.1-fabric-mc26.x.jar` | 25 |
+| 26.1 – 26.3 | `hopperfill-4.0.1-fabric-mc26.1.x.jar` | 25 |
 
 Current version: **4.0.1**. Download from [Releases](https://github.com/zijlo/HopperFill/releases) or [Modrinth](https://modrinth.com/user/zijlo).
 

@@ -31,7 +31,7 @@ fabric_api_version=0.145.1+26.1
 mod_version=4.0.1
 maven_group=com.zijlo
 archives_base_name=hopperfill
-artifact_suffix=mc26.x
+artifact_suffix=mc26.1.x
 minecraft_dependency=>=26.1
 EOF
 
@@ -45,8 +45,8 @@ if [ -z "$jar" ]; then
     exit 1
 fi
 
-cp "$jar" "$DIST/hopperfill-4.0.1-fabric-mc26.x.jar"
+cp "$jar" "$DIST/hopperfill-4.0.1-fabric-mc26.1.x.jar"
 echo ""
 echo "=================================================="
-echo "26+ 通用构建完成，产物: $DIST/hopperfill-4.0.1-fabric-mc26.x.jar"
+echo "26+ 通用构建完成，产物: $DIST/hopperfill-4.0.1-fabric-mc26.1.x.jar"
 ls -la "$DIST"

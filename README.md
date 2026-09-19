@@ -65,7 +65,7 @@ HopperFill 是一个 Minecraft Fabric 模组，提供区域扫描、自动填充
 | Minecraft 系列 | 产物文件 | 需要 Java |
 |---|---|---|
 | 1.21.11 ～ 1.21.x | `hopperfill-4.0.1-fabric-mc1.21.x.jar` | 21 |
-| 26.1 及以上 | `hopperfill-4.0.1-fabric-mc26.x.jar` | 25 |
+| 26.1 – 26.3 | `hopperfill-4.0.1-fabric-mc26.1.x.jar` | 25 |
 
 当前版本 **4.0.1**。下载地：[Releases](https://github.com/zijlo/HopperFill/releases) 与 [Modrinth](https://modrinth.com/user/zijlo)。
 
