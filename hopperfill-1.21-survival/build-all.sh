@@ -2,7 +2,7 @@
 # HopperFill 单一 JAR 构建脚本（覆盖 Minecraft 1.21 及以上所有版本）
 # 编译基准版本 1.21，fabric.mod.json 声明 "minecraft": ">=1.21"。
 # 代码只使用跨 1.21~1.21.11 稳定的 intermediary（如 interactionManager.isCreative()），
-# 无需再按版本拆分，产物为一个 hopperfill-1.21+.jar。
+# 无需再按版本拆分，产物为一个 hopperfill-fabric-1.21-4.0.1.jar。
 set -euo pipefail
 
 export JAVA_HOME=/usr/lib/jvm/java-21-temurin
@@ -20,12 +20,7 @@ org.gradle.jvmargs=-Xmx2G
 org.gradle.parallel=true
 org.gradle.configuration-cache=false
 
-# 沙箱出口代理（依赖下载）
-systemProp.http.proxyHost=127.0.0.1
-systemProp.http.proxyPort=18080
-systemProp.https.proxyHost=127.0.0.1
-systemProp.https.proxyPort=18080
-systemProp.http.nonProxyHosts=localhost|127.0.0.1
+# 依赖下载直连（如需代理自行补充 systemProp.*.proxyHost/Port）
 
 # Fabric（单一 1.21+ 基准版本，Yarn 映射）
 minecraft_version=1.21
@@ -34,9 +29,9 @@ loader_version=0.19.3
 fabric_version=0.102.0+1.21
 
 # Mod
-mod_version=4.0.0
+mod_version=4.0.1
 maven_group=com.zijlo
-archives_base_name=hopperfill
+archives_base_name=hopperfill-fabric-1.21
 minecraft_dependency=>=1.21
 EOF
 
@@ -50,8 +45,8 @@ if [ -z "$jar" ]; then
     exit 1
 fi
 
-cp "$jar" "$DIST/hopperfill-1.21+.jar"
+cp "$jar" "$DIST/hopperfill-fabric-1.21-4.0.1.jar"
 echo ""
 echo "=================================================="
-echo "构建完成，单一产物: $DIST/hopperfill-1.21+.jar"
+echo "构建完成，单一产物: $DIST/hopperfill-fabric-1.21-4.0.1.jar"
 ls -la "$DIST"

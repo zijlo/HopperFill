@@ -2,9 +2,9 @@ package com.zijlo.hopperfill;
 
 import com.zijlo.hopperfill.command.HopperFillCommand;
 import com.zijlo.hopperfill.data.TemplateStorage;
-import com.zijlo.hopperfill.fill.FillSession;
+import com.zijlo.hopperfill.fill.FillService;
 import com.zijlo.hopperfill.gui.TemplateScreenHandler;
-import com.zijlo.hopperfill.network.SettingsNetworking;
+import com.zijlo.hopperfill.network.SettingsNetwork;
 import com.zijlo.hopperfill.tool.HoeToolHandler;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -36,7 +36,7 @@ public class HopperFillMod implements ModInitializer {
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             HoeToolHandler.clearState(handler.getPlayer().getUUID());
-            FillSession.cleanup(handler.getPlayer().getUUID());
+            FillService.clearSession(handler.getPlayer().getUUID());
             TemplateStorage.savePlayer(server, handler.getPlayer());
             TemplateStorage.removePlayer(handler.getPlayer().getUUID());
         });
@@ -45,8 +45,8 @@ public class HopperFillMod implements ModInitializer {
             HopperFillCommand.register(dispatcher);
         });
 
-        SettingsNetworking.registerServer();
+        SettingsNetwork.registerServer();
         HoeToolHandler.register();
-        FillSession.registerTick();
+        FillService.registerTick();
     }
 }

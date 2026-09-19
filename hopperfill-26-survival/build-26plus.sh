@@ -19,12 +19,7 @@ org.gradle.jvmargs=-Xmx3G
 org.gradle.parallel=true
 org.gradle.configuration-cache=false
 
-# 沙箱出口代理（依赖下载）
-systemProp.http.proxyHost=127.0.0.1
-systemProp.http.proxyPort=18080
-systemProp.https.proxyHost=127.0.0.1
-systemProp.https.proxyPort=18080
-systemProp.http.nonProxyHosts=localhost|127.0.0.1
+# 依赖下载直连（如需代理自行补充 systemProp.*.proxyHost/Port）
 
 # Fabric (Mojang 官方映射)
 minecraft_version=26.1
@@ -33,9 +28,9 @@ loom_version=1.17-SNAPSHOT
 fabric_api_version=0.145.1+26.1
 
 # Mod
-mod_version=4.0.0
+mod_version=4.0.1
 maven_group=com.zijlo
-archives_base_name=hopperfill
+archives_base_name=hopperfill-fabric-26
 minecraft_dependency=>=26.1
 EOF
 
@@ -49,8 +44,8 @@ if [ -z "$jar" ]; then
     exit 1
 fi
 
-cp "$jar" "$DIST/hopperfill-26+.jar"
+cp "$jar" "$DIST/hopperfill-fabric-26-4.0.1.jar"
 echo ""
 echo "=================================================="
-echo "26+ 通用构建完成，产物: $DIST/hopperfill-26+.jar"
+echo "26+ 通用构建完成，产物: $DIST/hopperfill-fabric-26-4.0.1.jar"
 ls -la "$DIST"

@@ -1,14 +1,11 @@
 package com.zijlo.hopperfill.command;
 
 import com.zijlo.hopperfill.data.TemplateStorage;
-import com.zijlo.hopperfill.fill.FillValidator;
-import com.zijlo.hopperfill.fill.HopperFiller;
-import com.zijlo.hopperfill.geometry.LineBresenham3D;
+import com.zijlo.hopperfill.fill.FillService;
 import com.zijlo.hopperfill.gui.TemplateScreenHandler;
 import com.zijlo.hopperfill.region.RegionScanner;
-import com.zijlo.hopperfill.network.SettingsNetworking;
-import com.zijlo.hopperfill.network.SettingsPayloads;
-import com.zijlo.hopperfill.util.GiveAmount;
+import com.zijlo.hopperfill.tool.HoeToolHandler;
+import com.zijlo.hopperfill.network.SettingsNetwork;
 import com.zijlo.hopperfill.util.ItemFilter;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -19,6 +16,7 @@ import net.minecraft.block.entity.HopperBlockEntity;
 import net.minecraft.command.argument.BlockPosArgumentType;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ContainerComponent;
+import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -37,6 +35,7 @@ import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -46,6 +45,8 @@ import static net.minecraft.server.command.CommandManager.literal;
 public class HopperFillCommand {
     private static final int MAX_VOLUME = 32768;
     private static final int SHULKER_SLOTS = 27;
+    /** 方块更新标志：通知邻居 + 客户端 */
+    private static final int BLOCK_UPDATE_FLAGS = 3;
 
     /** 16 色潜影盒颜色，按给予顺序循环 */
     private static final DyeColor[] SHULKER_COLORS = {
@@ -78,6 +79,7 @@ public class HopperFillCommand {
                                     "§7/hf scan <from> <to> §f- 扫描区域统计\n" +
                                     "§7/hf fill <from> <to> <lineStart> <lineEnd> §f- 填充漏斗线（生存消耗材料）\n" +
                                     "§7/hf clear <lineStart> <lineEnd> §f- 清除漏斗内容\n" +
+                                    "§7/hf clear §f- 清除木锄选区内所有容器的内容（生存返还物品）\n" +
                                     "§7/hf givebox <from> <to> §f- §c[创造] §7把区域内物品装入纯净潜影盒\n" +
                                     "§7/hf hoe on/off §f- 开启/关闭木锄工具\n" +
                                     "§7/hf give all [数量] §f- §c[创造] §7给予可获取物品（装入潜影盒）\n" +
@@ -98,7 +100,7 @@ public class HopperFillCommand {
                         .then(literal("gui")
                                 .requires(source -> source.getPlayer() != null)
                                 .executes(ctx -> {
-                                    SettingsNetworking.open(ctx.getSource().getPlayer());
+                                    SettingsNetwork.open(ctx.getSource().getPlayer());
                                     return 1;
                                 })
                         )
@@ -156,6 +158,8 @@ public class HopperFillCommand {
                         )
                 )
                 .then(literal("clear")
+                        .requires(source -> source.getPlayer() != null)
+                        .executes(ctx -> executeClearRegion(ctx.getSource().getPlayer(), ctx.getSource().getWorld()))
                         .then(argument("lineStart", BlockPosArgumentType.blockPos())
                                 .then(argument("lineEnd", BlockPosArgumentType.blockPos())
                                         .executes(ctx -> {
@@ -235,7 +239,19 @@ public class HopperFillCommand {
             return 0;
         }
 
-        List<ItemStack> results = RegionScanner.scan(world, from, to, skipIds, from, to);
+        List<RegionScanner.Slice> slices = RegionScanner.scanSlices(world, from, to, skipIds, from, to);
+
+        // 一个漏斗只能放一种物品：同一切片出现多种物品时先报错，让用户补跳过方块后重试
+        String ambiguity = RegionScanner.describeAmbiguities(slices);
+        if (ambiguity != null) {
+            player.sendMessage(Text.literal("§c" + ambiguity), false);
+            return 0;
+        }
+
+        List<ItemStack> results = new ArrayList<>(slices.size());
+        for (RegionScanner.Slice slice : slices) {
+            results.add(slice.picked());
+        }
         printScanResult(player, results);
         return 1;
     }
@@ -260,19 +276,19 @@ public class HopperFillCommand {
             nsNames.add(new ItemStack(it).getName().getString());
         }
 
-        ServerPlayNetworking.send(player, new SettingsPayloads.ScanResultPayload(
+        ServerPlayNetworking.send(player, new SettingsNetwork.ScanResultPayload(
                 names, nonStackable, nsNames, results.size()));
         return nonStackableItems;
     }
 
     public static int executeFill(ServerPlayerEntity player, ServerWorld world, BlockPos from, BlockPos to,
                                   BlockPos lineStart, BlockPos lineEnd) {
-        FillValidator.Result result = FillValidator.validate(player, world, from, to, lineStart, lineEnd);
+        FillService.ValidationResult result = FillService.validate(player, world, from, to, lineStart, lineEnd);
         if (!result.success) {
             player.sendMessage(Text.literal(result.errorMessage), false);
             return 0;
         }
-        HopperFiller.FillResult fr = HopperFiller.fill(world, result.hoppers, result.results,
+        FillService.FillOutcome fr = FillService.fill(world, result.hoppers, result.results,
                 result.template16, result.template64, player);
 
         if (!fr.success) {
@@ -284,11 +300,51 @@ public class HopperFillCommand {
         return 1;
     }
 
+    /**
+     * 清除木锄选区内所有容器的内容（/hf clear 不带参数）。
+     * 生存模式返还物品、创造模式直接清空；无论结果如何都会重置木锄状态，
+     * 避免点完清空后残留旧选区，导致下一次右键直接跑 fill。
+     */
+    private static int executeClearRegion(ServerPlayerEntity player, ServerWorld world) {
+        // 注意顺序：reset() 会清空木锄状态，必须先取选区再重置，否则永远拿不到坐标
+        BlockPos[] region = HoeToolHandler.getCurrentRegion(player.getUuid());
+        HoeToolHandler.reset(player);
+        if (region == null) {
+            player.sendMessage(Text.literal("§c[木锄] 还没有选区：请先用木锄右键圈选区域"), false);
+            return 0;
+        }
+
+        boolean survival = !player.isCreative();
+        int cleared = 0;
+        for (BlockPos pos : BlockPos.iterate(region[0], region[1])) {
+            if (!(world.getBlockEntity(pos) instanceof Inventory inv)) continue;
+            if (survival) {
+                for (int i = 0; i < inv.size(); i++) {
+                    ItemStack stack = inv.getStack(i);
+                    if (!stack.isEmpty()) player.getInventory().offerOrDrop(stack.copy());
+                }
+            }
+            inv.clear();
+            BlockState st = world.getBlockState(pos);
+            world.updateListeners(pos, st, st, BLOCK_UPDATE_FLAGS);
+            cleared++;
+        }
+
+        if (cleared == 0) {
+            player.sendMessage(Text.literal("§c[木锄] 选区内没有找到容器"), false);
+            return 0;
+        }
+        player.sendMessage(Text.literal("§a[木锄] 已清除 " + cleared + " 个容器的内容"
+                + (survival ? "（物品已返还）" : "")), false);
+        return 1;
+    }
+
     /** 清除漏斗线内容（/hf clear <lineStart> <lineEnd>）。
      *  生存模式：先返还漏斗内物品（先背包，满则掉落），再清空；创造模式：直接清空不返还。 */
     private static int executeClear(ServerPlayerEntity player, ServerWorld world, BlockPos lineStart, BlockPos lineEnd) {
-        List<BlockPos> hoppers = LineBresenham3D.getPositions(lineStart, lineEnd);
-        Optional<String> continuityError = LineBresenham3D.checkContinuity(hoppers);
+        HoeToolHandler.reset(player);
+        List<BlockPos> hoppers = FillService.linePositions(lineStart, lineEnd);
+        Optional<String> continuityError = FillService.checkContinuity(hoppers);
         if (continuityError.isPresent()) {
             player.sendMessage(Text.literal("§c错误：漏斗线不连续，" + continuityError.get()), false);
             return 0;
@@ -326,6 +382,7 @@ public class HopperFillCommand {
     /** 把区域内扫描到的每种物品装满一个纯净（未染色）潜影盒给予玩家（/hf givebox <from> <to>）
      *  每个潜影盒只装一种物品，装满 27 格（64堆叠=1728，16堆叠=432，不可堆叠=27）。 */
     private static int executeGiveBox(ServerPlayerEntity player, ServerWorld world, BlockPos from, BlockPos to) {
+        HoeToolHandler.reset(player);
         Set<Identifier> skipIds = TemplateStorage.getBlockIds(player);
         if (skipIds.isEmpty()) {
             player.sendMessage(Text.literal("§c请先使用 /hf set gui 添加要跳过的方块"), false);
@@ -348,21 +405,27 @@ public class HopperFillCommand {
 
         int boxesGiven = 0;
         for (Item item : uniqueItems) {
-            int maxStack = new ItemStack(item).getMaxCount();
-            List<ItemStack> contents = new ArrayList<>(SHULKER_SLOTS);
-            for (int slot = 0; slot < SHULKER_SLOTS; slot++) {
-                ItemStack stack = new ItemStack(item);
-                stack.setCount(maxStack);
-                contents.add(stack);
-            }
-            ItemStack shulker = new ItemStack(Items.SHULKER_BOX);
-            shulker.set(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(contents));
-            player.getInventory().offerOrDrop(shulker);
+            player.getInventory().offerOrDrop(buildFullShulker(item));
             boxesGiven++;
         }
         player.sendMessage(Text.literal(
                 "§a完成！已给予 §e" + boxesGiven + "§a 个纯净满潜影盒（§e" + totalTypes + "§a 种物品）"), false);
         return 1;
+    }
+
+    /** 生成一个装满指定物品的纯净（未染色）潜影盒，交给调用方决定如何给玩家。
+     *  每种物品一个整盒：27 格 × 最大堆叠（64堆叠=1728，16堆叠=432，不可堆叠=27）。 */
+    private static ItemStack buildFullShulker(Item item) {
+        int maxStack = new ItemStack(item).getMaxCount();
+        List<ItemStack> contents = new ArrayList<>(SHULKER_SLOTS);
+        for (int slot = 0; slot < SHULKER_SLOTS; slot++) {
+            ItemStack stack = new ItemStack(item);
+            stack.setCount(maxStack);
+            contents.add(stack);
+        }
+        ItemStack shulker = new ItemStack(Items.SHULKER_BOX);
+        shulker.set(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(contents));
+        return shulker;
     }
 
     /** 按玩家「满盒物品」清单（/hf set gui → 满盒物品 标签页）给予纯净满潜影盒（/hf give box）。
@@ -394,16 +457,7 @@ public class HopperFillCommand {
 
         int boxesGiven = 0;
         for (Item item : items) {
-            int maxStack = new ItemStack(item).getMaxCount();
-            List<ItemStack> contents = new ArrayList<>(SHULKER_SLOTS);
-            for (int slot = 0; slot < SHULKER_SLOTS; slot++) {
-                ItemStack stack = new ItemStack(item);
-                stack.setCount(maxStack);
-                contents.add(stack);
-            }
-            ItemStack shulker = new ItemStack(Items.SHULKER_BOX);
-            shulker.set(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(contents));
-            player.getInventory().offerOrDrop(shulker);
+            player.getInventory().offerOrDrop(buildFullShulker(item));
             boxesGiven++;
         }
         player.sendMessage(Text.literal(
@@ -444,18 +498,12 @@ public class HopperFillCommand {
             case NON_STACKABLE -> "不可堆叠物品";
         };
 
-        return giveItemsInShulkers(player, items, label);
-    }
-
-    private static int giveItemsInShulkers(ServerPlayerEntity player, List<ItemStack> items, String label) {
         return giveItemsInShulkers(player, items, label, true, false);
     }
 
-    private static int giveItemsInShulkers(ServerPlayerEntity player, List<ItemStack> items, String label, boolean nameBox) {
-        return giveItemsInShulkers(player, items, label, true, nameBox);
-    }
-
-    private static int giveItemsInShulkers(ServerPlayerEntity player, List<ItemStack> items, String label, boolean verbose, boolean nameBox) {
+    /** 把 items 按每 27 个一组装进 16 色循环染色的潜影盒给予玩家 */
+    private static int giveItemsInShulkers(ServerPlayerEntity player, List<ItemStack> items, String label,
+                                           boolean verbose, boolean nameBox) {
         int totalTypes = items.size();
         int boxCount = (totalTypes + SHULKER_SLOTS - 1) / SHULKER_SLOTS;
 
@@ -514,5 +562,62 @@ public class HopperFillCommand {
             case BLACK -> Items.BLACK_SHULKER_BOX;
         };
         return new ItemStack(item);
+    }
+
+    /**
+     * give 命令「每个物品一组」的数量策略（原 util/GiveAmount，只有本类用得到，收进命令里）。
+     *   - count(n)  : 精确数量，按物品最大堆叠钳制（64堆叠 1-64，16堆叠 1-16）
+     *   - all       : 满堆叠（64堆叠=64，16堆叠=16）
+     *   - all-1     : 满堆叠减一（64堆叠=63，16堆叠=15）
+     */
+    private static final class GiveAmount {
+        private enum Mode { COUNT, ALL, ALL_MINUS_ONE }
+
+        private final Mode mode;
+        private final int count;
+
+        private GiveAmount(Mode mode, int count) {
+            this.mode = mode;
+            this.count = count;
+        }
+
+        /** 满堆叠（保持旧版行为），也是解析失败时的默认值 */
+        static GiveAmount defaultAmount() {
+            return new GiveAmount(Mode.ALL, 0);
+        }
+
+        /** 解析命令参数字符串（可为 null）：整数 / all / all-1，非法输入回退默认 */
+        static GiveAmount parse(String raw) {
+            if (raw == null || raw.isBlank()) return defaultAmount();
+            return switch (raw.trim().toLowerCase(Locale.ROOT)) {
+                case "all" -> defaultAmount();
+                case "all-1" -> new GiveAmount(Mode.ALL_MINUS_ONE, 0);
+                default -> {
+                    int n;
+                    try {
+                        n = Integer.parseInt(raw.trim());
+                    } catch (NumberFormatException e) {
+                        yield defaultAmount();
+                    }
+                    yield new GiveAmount(Mode.COUNT, Math.max(1, n));
+                }
+            };
+        }
+
+        /** 依据物品最大堆叠数计算最终给予数量；不可堆叠物品恒为 1。
+         *  精确数量时：64 堆叠按给定数量，16 堆叠按 64 堆叠比例换算（如 63 → 64堆叠给 63、16堆叠给 15）。 */
+        int resolve(int maxStack) {
+            if (maxStack <= 1) return 1;
+            return switch (mode) {
+                case ALL -> maxStack;
+                case ALL_MINUS_ONE -> Math.max(1, maxStack - 1);
+                case COUNT -> {
+                    if (maxStack >= 64) {
+                        yield Math.max(1, Math.min(count, 64));
+                    }
+                    yield Math.max(1, Math.min(maxStack, count * maxStack / 64));
+                }
+            };
+        }
     }
 }

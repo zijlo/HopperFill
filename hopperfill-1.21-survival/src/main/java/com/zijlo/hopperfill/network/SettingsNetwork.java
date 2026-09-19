@@ -1,23 +1,34 @@
 package com.zijlo.hopperfill.network;
 
+import com.zijlo.hopperfill.data.TemplateStorage;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
- * HopperFill 设置界面的网络载荷（1.21.11 / Yarn 映射）。
+ * 设置界面的网络层（1.21.11 / Yarn 映射），合并了原先的 SettingsPayloads 与 SettingsNetworking。
  * 使用 Fabric networking v1：CustomPayload + PacketCodec。
+ *
+ * <p>{@link #registerServer()} 在 ModInitializer 里调用一次注册 codec 与 C2S 接收器；
+ * {@link #open} 是 /hf set gui 的入口。
  */
-public final class SettingsPayloads {
-    private SettingsPayloads() {}
+public final class SettingsNetwork {
+    private SettingsNetwork() {}
+
+    // ---------------- 载荷定义 ----------------
 
     /** S2C：打开设置界面，携带当前黑名单、跳过方块与满盒物品集合 */
-    public record OpenSettingsPayload(List<String> blacklist, List<String> skipBlocks, List<String> boxItems) implements CustomPayload {
+    public record OpenSettingsPayload(List<String> blacklist, List<String> skipBlocks,
+                                      List<String> boxItems) implements CustomPayload {
         public static final Id<OpenSettingsPayload> ID = new Id<>(Identifier.of("hopperfill", "open_settings"));
         public static final PacketCodec<RegistryByteBuf, OpenSettingsPayload> CODEC = PacketCodec.of(
                 (payload, buf) -> {
@@ -113,5 +124,62 @@ public final class SettingsPayloads {
         public Id<? extends CustomPayload> getId() {
             return ID;
         }
+    }
+
+    // ---------------- 服务端注册 ----------------
+
+    /** 在 ModInitializer 里调用一次 */
+    public static void registerServer() {
+        PayloadTypeRegistry.playS2C().register(OpenSettingsPayload.ID, OpenSettingsPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ScanResultPayload.ID, ScanResultPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(UpdateBlacklistPayload.ID, UpdateBlacklistPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(UpdateSkipBlockPayload.ID, UpdateSkipBlockPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(UpdateBoxPayload.ID, UpdateBoxPayload.CODEC);
+
+        ServerPlayNetworking.registerGlobalReceiver(UpdateBlacklistPayload.ID, (payload, ctx) -> {
+            ServerPlayerEntity p = ctx.player();
+            Identifier id = Identifier.of(payload.itemId());
+            if (payload.add()) {
+                TemplateStorage.addGiveBlacklist(p, id);
+            } else {
+                TemplateStorage.removeGiveBlacklist(p, id);
+            }
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(UpdateSkipBlockPayload.ID, (payload, ctx) -> {
+            ServerPlayerEntity p = ctx.player();
+            Identifier id = Identifier.of(payload.blockId());
+            if (payload.add()) {
+                TemplateStorage.addBlockId(p, id);
+            } else {
+                TemplateStorage.removeBlockId(p, id);
+            }
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(UpdateBoxPayload.ID, (payload, ctx) -> {
+            ServerPlayerEntity p = ctx.player();
+            Identifier id = Identifier.of(payload.itemId());
+            if (payload.add()) {
+                TemplateStorage.addBoxItem(p, id);
+            } else {
+                TemplateStorage.removeBoxItem(p, id);
+            }
+        });
+    }
+
+    /** /hf set gui 命令入口：发送打开界面的 S2C 包 */
+    public static void open(ServerPlayerEntity player) {
+        ServerPlayNetworking.send(player, new OpenSettingsPayload(
+                toStrings(TemplateStorage.getGiveBlacklist(player)),
+                toStrings(TemplateStorage.getBlockIds(player)),
+                toStrings(TemplateStorage.getBoxItems(player))));
+    }
+
+    private static List<String> toStrings(Set<Identifier> ids) {
+        List<String> out = new ArrayList<>(ids.size());
+        for (Identifier id : ids) {
+            out.add(id.toString());
+        }
+        return out;
     }
 }

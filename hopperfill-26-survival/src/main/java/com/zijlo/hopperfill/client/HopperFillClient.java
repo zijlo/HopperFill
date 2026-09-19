@@ -3,7 +3,7 @@ package com.zijlo.hopperfill.client;
 import com.zijlo.hopperfill.HopperFillMod;
 import com.zijlo.hopperfill.client.gui.SettingsScreen;
 import com.zijlo.hopperfill.client.gui.TemplateScreen;
-import com.zijlo.hopperfill.network.SettingsPayloads;
+import com.zijlo.hopperfill.network.SettingsNetwork;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.ChatFormatting;
@@ -36,7 +36,7 @@ public class HopperFillClient implements ClientModInitializer {
     public void onInitializeClient() {
         MenuScreens.register(HopperFillMod.TEMPLATE_SCREEN_HANDLER, TemplateScreen::new);
 
-        ClientPlayNetworking.registerGlobalReceiver(SettingsPayloads.OpenSettingsPayload.TYPE, (payload, ctx) -> {
+        ClientPlayNetworking.registerGlobalReceiver(SettingsNetwork.OpenSettingsPayload.TYPE, (payload, ctx) -> {
             Minecraft client = ctx.client();
             Set<String> blacklist = new LinkedHashSet<>(payload.blacklist());
             Set<String> skipBlocks = new LinkedHashSet<>(payload.skipBlocks());
@@ -44,7 +44,7 @@ public class HopperFillClient implements ClientModInitializer {
             client.execute(() -> client.setScreenAndShow(new SettingsScreen(blacklist, skipBlocks, boxItems)));
         });
 
-        ClientPlayNetworking.registerGlobalReceiver(SettingsPayloads.ScanResultPayload.TYPE, (payload, ctx) -> {
+        ClientPlayNetworking.registerGlobalReceiver(SettingsNetwork.ScanResultPayload.TYPE, (payload, ctx) -> {
             Minecraft client = ctx.client();
             client.execute(() -> renderScanResult(client, payload));
         });
@@ -54,7 +54,7 @@ public class HopperFillClient implements ClientModInitializer {
      * 用客户端的真实字体（Font.width）量出每个物品名的像素宽度，据此对齐多列排版的统计表格。
      * 服务端无法获知客户端字体，所以这里才接入网络层精确排版——彻底解决原「中文=2/其他=1」估算造成的错位。
      */
-    private static void renderScanResult(Minecraft client, SettingsPayloads.ScanResultPayload payload) {
+    private static void renderScanResult(Minecraft client, SettingsNetwork.ScanResultPayload payload) {
         Font font = client.font; // 26.x 亦可用 client.gui.getFont()，二者等价
         ChatComponent chat = getChatComponent(client);
 

@@ -1,0 +1,26 @@
+# Gradle / 构建产物
+build/
+.gradle/
+out/
+
+# 构建输出（jar 走 Release 发布，不入库）
+dist/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# 运行目录 / 日志
+run/
+logs/
+*.log
+
+# 系统
+.DS_Store
+Thumbs.db

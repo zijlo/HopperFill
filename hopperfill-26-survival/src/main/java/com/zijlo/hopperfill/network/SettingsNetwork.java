@@ -1,22 +1,33 @@
 package com.zijlo.hopperfill.network;
 
+import com.zijlo.hopperfill.data.TemplateStorage;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
- * HopperFill 设置界面的网络载荷（26.x / Mojang 非混淆命名）。
+ * 设置界面的网络层（26.x / Mojang 非混淆命名），合并了原先的 SettingsPayloads 与 SettingsNetworking。
  * 使用 Fabric networking v1：CustomPacketPayload + StreamCodec。
+ *
+ * <p>{@link #registerServer()} 在 ModInitializer 里调用一次注册 codec 与 C2S 接收器；
+ * {@link #open} 是 /hf set gui 的入口。
  */
-public final class SettingsPayloads {
-    private SettingsPayloads() {}
+public final class SettingsNetwork {
+    private SettingsNetwork() {}
+
+    // ---------------- 载荷定义 ----------------
 
     /** S2C：打开设置界面，携带当前黑名单、跳过方块与满盒物品集合 */
-    public record OpenSettingsPayload(List<String> blacklist, List<String> skipBlocks, List<String> boxItems) implements CustomPacketPayload {
+    public record OpenSettingsPayload(List<String> blacklist, List<String> skipBlocks,
+                                      List<String> boxItems) implements CustomPacketPayload {
         public static final Type<OpenSettingsPayload> TYPE =
                 new Type<>(Identifier.fromNamespaceAndPath("hopperfill", "open_settings"));
         public static final StreamCodec<FriendlyByteBuf, OpenSettingsPayload> STREAM_CODEC =
@@ -129,6 +140,65 @@ public final class SettingsPayloads {
             return TYPE;
         }
     }
+
+    // ---------------- 服务端注册 ----------------
+
+    /** 在 ModInitializer 里调用一次（onInitialize 同时跑在客户端与服务端，codec 两侧都注册到） */
+    public static void registerServer() {
+        PayloadTypeRegistry.clientboundPlay().register(OpenSettingsPayload.TYPE, OpenSettingsPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(ScanResultPayload.TYPE, ScanResultPayload.STREAM_CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(UpdateBlacklistPayload.TYPE, UpdateBlacklistPayload.STREAM_CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(UpdateSkipBlockPayload.TYPE, UpdateSkipBlockPayload.STREAM_CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(UpdateBoxPayload.TYPE, UpdateBoxPayload.STREAM_CODEC);
+
+        ServerPlayNetworking.registerGlobalReceiver(UpdateBlacklistPayload.TYPE, (payload, ctx) -> {
+            ServerPlayer p = ctx.player();
+            Identifier id = Identifier.parse(payload.itemId());
+            if (payload.add()) {
+                TemplateStorage.addGiveBlacklist(p, id);
+            } else {
+                TemplateStorage.removeGiveBlacklist(p, id);
+            }
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(UpdateSkipBlockPayload.TYPE, (payload, ctx) -> {
+            ServerPlayer p = ctx.player();
+            Identifier id = Identifier.parse(payload.blockId());
+            if (payload.add()) {
+                TemplateStorage.addBlockId(p, id);
+            } else {
+                TemplateStorage.removeBlockId(p, id);
+            }
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(UpdateBoxPayload.TYPE, (payload, ctx) -> {
+            ServerPlayer p = ctx.player();
+            Identifier id = Identifier.parse(payload.itemId());
+            if (payload.add()) {
+                TemplateStorage.addBoxItem(p, id);
+            } else {
+                TemplateStorage.removeBoxItem(p, id);
+            }
+        });
+    }
+
+    /** /hf set gui 命令入口：发送打开界面的 S2C 包 */
+    public static void open(ServerPlayer player) {
+        ServerPlayNetworking.send(player, new OpenSettingsPayload(
+                toStrings(TemplateStorage.getGiveBlacklist(player)),
+                toStrings(TemplateStorage.getBlockIds(player)),
+                toStrings(TemplateStorage.getBoxItems(player))));
+    }
+
+    private static List<String> toStrings(Set<Identifier> ids) {
+        List<String> out = new ArrayList<>(ids.size());
+        for (Identifier id : ids) {
+            out.add(id.toString());
+        }
+        return out;
+    }
+
+    // ---------------- 编解码小工具 ----------------
 
     /** 以 VarInt 前缀长度 + 逐条 writeUtf 的方式写字符串列表 */
     private static void writeStringList(FriendlyByteBuf buf, List<String> list) {

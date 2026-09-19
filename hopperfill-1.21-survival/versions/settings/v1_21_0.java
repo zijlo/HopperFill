@@ -1,6 +1,6 @@
 package com.zijlo.hopperfill.client.gui;
 
-import com.zijlo.hopperfill.network.SettingsPayloads;
+import com.zijlo.hopperfill.network.SettingsNetwork;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.block.Block;
 import net.minecraft.client.gui.DrawContext;
@@ -462,13 +462,13 @@ public class SettingsScreen extends Screen {
         boolean changed;
         if (contentTab == ContentTab.BLACKLIST) {
             changed = blacklist.add(id);
-            if (changed) ClientPlayNetworking.send(new SettingsPayloads.UpdateBlacklistPayload(id, true));
+            if (changed) ClientPlayNetworking.send(new SettingsNetwork.UpdateBlacklistPayload(id, true));
         } else if (contentTab == ContentTab.BOX) {
             changed = boxItems.add(id);
-            if (changed) ClientPlayNetworking.send(new SettingsPayloads.UpdateBoxPayload(id, true));
+            if (changed) ClientPlayNetworking.send(new SettingsNetwork.UpdateBoxPayload(id, true));
         } else {
             changed = skipBlocks.add(id);
-            if (changed) ClientPlayNetworking.send(new SettingsPayloads.UpdateSkipBlockPayload(id, true));
+            if (changed) ClientPlayNetworking.send(new SettingsNetwork.UpdateSkipBlockPayload(id, true));
         }
         if (changed) {
             int saved = scrollY;
@@ -481,13 +481,13 @@ public class SettingsScreen extends Screen {
         boolean changed;
         if (contentTab == ContentTab.BLACKLIST) {
             changed = blacklist.remove(id);
-            if (changed) ClientPlayNetworking.send(new SettingsPayloads.UpdateBlacklistPayload(id, false));
+            if (changed) ClientPlayNetworking.send(new SettingsNetwork.UpdateBlacklistPayload(id, false));
         } else if (contentTab == ContentTab.BOX) {
             changed = boxItems.remove(id);
-            if (changed) ClientPlayNetworking.send(new SettingsPayloads.UpdateBoxPayload(id, false));
+            if (changed) ClientPlayNetworking.send(new SettingsNetwork.UpdateBoxPayload(id, false));
         } else {
             changed = skipBlocks.remove(id);
-            if (changed) ClientPlayNetworking.send(new SettingsPayloads.UpdateSkipBlockPayload(id, false));
+            if (changed) ClientPlayNetworking.send(new SettingsNetwork.UpdateSkipBlockPayload(id, false));
         }
         if (changed) {
             int saved = scrollY;
