@@ -1,5 +1,7 @@
 # HopperFill
 
+**简体中文** | [English](README_EN.md)
+
 HopperFill 是一个 Minecraft Fabric 模组，提供区域扫描、自动填充漏斗线、可视化木锄选区工具，以及 `/hf give` 一键将物品打包进潜影盒。支持创造与生存两种模式（部分命令为创造模式专属）。
 
 ## 功能特性
@@ -58,15 +60,16 @@ HopperFill 是一个 Minecraft Fabric 模组，提供区域扫描、自动填充
 
 任一步骤出错（一片多物品 / 不可堆叠物品 / 漏斗线不连续 / 材料不足）都会报错并重置木锄，直接重新右键即可。
 
-## 支持版本
+## 支持版本与下载
 
-| Minecraft 系列 | 说明 |
-|---|---|
-| 1.21.x | 1.21、1.21.1 … 1.21.11 全系列 |
-| 26.x | 26.1、26.1.1、26.1.2、26.2 |
+| Minecraft 系列 | 产物文件 | 需要 Java |
+|---|---|---|
+| 1.21.11 ～ 1.21.x | `hopperfill-4.0.1-fabric-mc1.21.x.jar` | 21 |
+| 26.1 及以上 | `hopperfill-4.0.1-fabric-mc26.x.jar` | 25 |
 
-每个模块产出一个通用 jar：`hopperfill-fabric-1.21-<版本>.jar` 与 `hopperfill-fabric-26-<版本>.jar`
-（当前版本 **4.0.1**；`build-121x.sh` / `build-26x.sh` 可按小版本逐个产出）。
+当前版本 **4.0.1**。下载地：[Releases](https://github.com/zijlo/HopperFill/releases) 与 [Modrinth](https://modrinth.com/user/zijlo)。
+
+> `mc1.21.x` 包的编译基准是 **1.21.11**，`fabric.mod.json` 声明 `>=1.21.11 <1.22`——因为客户端界面用到了 1.21.9+ 才提供的 API。若需要 1.21.0 ～ 1.21.10，请用 `build-121x.sh` 按小版本自行构建（每个小版本产出一个 jar）；26 系列同理可用 `build-26x.sh` 产出 26.1 / 26.1.1 / 26.1.2 / 26.2。
 
 ## 环境要求
 
@@ -78,7 +81,7 @@ HopperFill 是一个 Minecraft Fabric 模组，提供区域扫描、自动填充
 ## 安装
 
 1. 安装 [Fabric Loader](https://fabricmc.net/use/) 与对应版本的 [Fabric API](https://modrinth.com/mod/fabric-api)。
-2. 将与你游戏版本匹配的 `hopperfill-<版本>.jar` 放入 `.minecraft/mods/` 目录。
+2. 将与你游戏版本匹配的 `hopperfill-<版本>-fabric-mc<系列>.jar` 放入 `.minecraft/mods/` 目录。
 3. 进入游戏，输入 `/hf` 查看用法。
 
 ## 使用流程
@@ -117,6 +120,9 @@ cd hopperfill-1.21-survival && ./gradlew build
 # 26.x（Mojang 官方映射，需 JDK 25）
 cd hopperfill-26-survival && ./gradlew build
 ```
+
+产物名由 `gradle.properties` 的 `archives_base_name` + `mod_version` + `artifact_suffix` 决定，
+即 `hopperfill-<mod_version>-fabric-<artifact_suffix>.jar`。多版本构建脚本会按小版本改写 `artifact_suffix`。
 
 ## 许可证
 

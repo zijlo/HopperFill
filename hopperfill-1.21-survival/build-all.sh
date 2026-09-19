@@ -2,7 +2,7 @@
 # HopperFill 单一 JAR 构建脚本（覆盖 Minecraft 1.21 及以上所有版本）
 # 编译基准版本 1.21，fabric.mod.json 声明 "minecraft": ">=1.21"。
 # 代码只使用跨 1.21~1.21.11 稳定的 intermediary（如 interactionManager.isCreative()），
-# 无需再按版本拆分，产物为一个 hopperfill-fabric-1.21-4.0.1.jar。
+# 无需再按版本拆分，产物为一个 hopperfill-4.0.1-fabric-mc1.21.x.jar。
 set -euo pipefail
 
 export JAVA_HOME=/usr/lib/jvm/java-21-temurin
@@ -31,7 +31,8 @@ fabric_version=0.102.0+1.21
 # Mod
 mod_version=4.0.1
 maven_group=com.zijlo
-archives_base_name=hopperfill-fabric-1.21
+archives_base_name=hopperfill
+artifact_suffix=mc1.21.x
 minecraft_dependency=>=1.21
 EOF
 
@@ -45,8 +46,8 @@ if [ -z "$jar" ]; then
     exit 1
 fi
 
-cp "$jar" "$DIST/hopperfill-fabric-1.21-4.0.1.jar"
+cp "$jar" "$DIST/hopperfill-4.0.1-fabric-mc1.21.x.jar"
 echo ""
 echo "=================================================="
-echo "构建完成，单一产物: $DIST/hopperfill-fabric-1.21-4.0.1.jar"
+echo "构建完成，单一产物: $DIST/hopperfill-4.0.1-fabric-mc1.21.x.jar"
 ls -la "$DIST"

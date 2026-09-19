@@ -39,7 +39,8 @@ fabric_api_version=$api
 # Mod
 mod_version=4.0.1
 maven_group=com.zijlo
-archives_base_name=hopperfill-fabric-26
+archives_base_name=hopperfill
+artifact_suffix=mc$mc
 minecraft_dependency=$dep
 EOF
 }
@@ -62,8 +63,8 @@ while IFS='|' read -r mc api dep; do
         echo "!! 未找到产物 jar for $mc" >&2
         exit 1
     fi
-    cp "$jar" "$DIST/hopperfill-fabric-26-$mc-4.0.1.jar"
-    echo ">> 产物: $DIST/hopperfill-fabric-26-$mc-4.0.1.jar"
+    cp "$jar" "$DIST/hopperfill-4.0.1-fabric-mc$mc.jar"
+    echo ">> 产物: $DIST/hopperfill-4.0.1-fabric-mc$mc.jar"
 done <<< "$MATRIX"
 
 echo ""

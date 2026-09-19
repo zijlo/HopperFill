@@ -59,7 +59,8 @@ fabric_version=$api
 # Mod
 mod_version=4.0.1
 maven_group=com.zijlo
-archives_base_name=hopperfill-fabric-1.21
+archives_base_name=hopperfill
+artifact_suffix=mc$mc
 minecraft_dependency=>=$mc <1.22
 EOF
 }
@@ -103,8 +104,8 @@ while IFS='|' read -r mc yarn api tv sv; do
         restore_main
         exit 1
     fi
-    cp "$jar" "$DIST/hopperfill-fabric-1.21-$mc-4.0.1.jar"
-    echo ">> 产物: $DIST/hopperfill-fabric-1.21-$mc-4.0.1.jar"
+    cp "$jar" "$DIST/hopperfill-4.0.1-fabric-mc$mc.jar"
+    echo ">> 产物: $DIST/hopperfill-4.0.1-fabric-mc$mc.jar"
 done <<< "$MATRIX"
 
 restore_main
