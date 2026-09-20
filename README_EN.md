@@ -69,7 +69,9 @@ Any error along the way (multi-item slice / non-stackable items / broken hopper 
 
 Current version: **4.0.1**. Download from [Releases](https://github.com/zijlo/HopperFill/releases) or [Modrinth](https://modrinth.com/user/zijlo).
 
-> The `mc1.21.x` build targets **1.21.11** and declares `>=1.21.11 <1.22`, because the client screens use APIs introduced in 1.21.9. If you need 1.21.0 – 1.21.10, build per version with `build-121x.sh` (one jar per patch version); likewise `build-26x.sh` produces 26.1 / 26.1.1 / 26.1.2 / 26.2.
+> The `mc1.21.x` build targets **1.21.11** and declares `>=1.21.11 <1.22`, because the client screens use APIs introduced in 1.21.9. If you need 1.21.0 – 1.21.10, build per version with `build-121x.sh` (one jar per patch version).
+
+> The `mc26.1.x` build is **a single jar covering 26.1 through 26.3**. 26.3 moved the render pipeline from `com.mojang.blaze3d` to `com.mojang.renderpearl` and replaced `Player.drop(ItemStack, boolean)` with a signature taking a `Prediction`. Both spots are now resolved **reflectively by name**, so the same jar works on 26.1 / 26.1.1 / 26.1.2 / 26.2 / 26.3 (verified at the symbol level). Should a future 26.x break the API again, use `build-26x.sh` to cut a per-version jar.
 
 ## Requirements
 

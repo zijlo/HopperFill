@@ -69,7 +69,9 @@ HopperFill 是一个 Minecraft Fabric 模组，提供区域扫描、自动填充
 
 当前版本 **4.0.1**。下载地：[Releases](https://github.com/zijlo/HopperFill/releases) 与 [Modrinth](https://modrinth.com/user/zijlo)。
 
-> `mc1.21.x` 包的编译基准是 **1.21.11**，`fabric.mod.json` 声明 `>=1.21.11 <1.22`——因为客户端界面用到了 1.21.9+ 才提供的 API。若需要 1.21.0 ～ 1.21.10，请用 `build-121x.sh` 按小版本自行构建（每个小版本产出一个 jar）；26 系列同理可用 `build-26x.sh` 产出 26.1 / 26.1.1 / 26.1.2 / 26.2。
+> `mc1.21.x` 包的编译基准是 **1.21.11**，`fabric.mod.json` 声明 `>=1.21.11 <1.22`——因为客户端界面用到了 1.21.9+ 才提供的 API。若需要 1.21.0 ～ 1.21.10，请用 `build-121x.sh` 按小版本自行构建（每个小版本产出一个 jar）。
+
+> `mc26.1.x` 包**一个就覆盖 26.1 ～ 26.3**。26.3 改了两处 API：渲染管线从 `com.mojang.blaze3d` 迁到了 `com.mojang.renderpearl`，`Player.drop(ItemStack, boolean)` 也换成了带 `Prediction` 参数的新签名。模组把这两处改成**按名字反射解析**，所以同一个 jar 在 26.1 / 26.1.1 / 26.1.2 / 26.2 / 26.3 上都能用（已做符号级校验）。若将来 26.x 再出现破坏性变更，可用 `build-26x.sh` 按小版本另出包。
 
 ## 环境要求
 

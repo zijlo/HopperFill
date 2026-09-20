@@ -34,6 +34,7 @@ import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -310,10 +311,7 @@ public class HopperFillCommand {
                 for (int i = 0; i < inv.getContainerSize(); i++) {
                     ItemStack stack = inv.getItem(i);
                     if (stack.isEmpty()) continue;
-                    ItemStack copy = stack.copy();
-                    if (!player.getInventory().add(copy)) {
-                        player.drop(copy, false);
-                    }
+                    addOrDrop(player, stack.copy());
                 }
             }
             inv.clearContent();
@@ -357,10 +355,7 @@ public class HopperFillCommand {
                 for (int i = 0; i < hopper.getContainerSize(); i++) {
                     ItemStack stack = hopper.getItem(i);
                     if (!stack.isEmpty()) {
-                        ItemStack copy = stack.copy();
-                        if (!player.getInventory().add(copy)) {
-                            player.drop(copy, false);
-                        }
+                        addOrDrop(player, stack.copy());
                     }
                 }
             }
@@ -372,6 +367,53 @@ public class HopperFillCommand {
         }
         player.sendSystemMessage(Component.literal("§a已清除 " + cleared + " 个漏斗的内容" + (survival ? "（物品已返还）" : "")), false);
         return 1;
+    }
+
+    /**
+     * 把物品放进玩家背包，放不下就丢到地上。
+     *
+     * <p>跨版本要点：26.3 把 {@code Player.drop(ItemStack, boolean)} 换成了
+     * {@code drop(ItemStack, boolean, Prediction)}（{@code Prediction} 是 26.3 新增的枚举）。
+     * 直接写死 {@code player.drop(stack, false)} 的话，编译期会把其中一个版本的签名固化进常量池，
+     * 在另一个版本上就会抛 {@code NoSuchMethodError}。所以这里按<b>名字</b>反射挑一个可用签名。
+     */
+    private static void addOrDrop(ServerPlayer player, ItemStack stack) {
+        if (player.getInventory().add(stack)) {
+            return;
+        }
+        try {
+            for (Method method : player.getClass().getMethods()) {
+                if (!"drop".equals(method.getName())) {
+                    continue;
+                }
+                Class<?>[] p = method.getParameterTypes();
+                if (p.length == 2 && p[0].isAssignableFrom(ItemStack.class) && p[1] == boolean.class) {
+                    method.invoke(player, stack, false);              // 26.1 / 26.2
+                    return;
+                }
+                if (p.length == 3 && p[0].isAssignableFrom(ItemStack.class)
+                        && p[1] == boolean.class && p[2].isEnum()) {
+                    method.invoke(player, stack, false, serverOnly(p[2]));   // 26.3+
+                    return;
+                }
+            }
+        } catch (Throwable ignored) {
+            // 丢不出去不影响命令其余流程
+        }
+    }
+
+    /** 取 {@code Prediction} 枚举中表示「仅服务端」的常量；取不到则退回最后一个常量。 */
+    private static Object serverOnly(Class<?> enumType) {
+        Object[] constants = enumType.getEnumConstants();
+        if (constants == null || constants.length == 0) {
+            return null;
+        }
+        for (Object constant : constants) {
+            if (constant instanceof Enum<?> e && "SERVER_ONLY".equals(e.name())) {
+                return constant;
+            }
+        }
+        return constants[constants.length - 1];
     }
 
     /** 把区域内扫描到的每种物品装满一个纯净（未染色）潜影盒给予玩家（/hf givebox <from> <to>）
@@ -457,9 +499,7 @@ public class HopperFillCommand {
         }
         ItemStack shulker = new ItemStack(Items.SHULKER_BOX);
         shulker.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(contents));
-        if (!player.getInventory().add(shulker)) {
-            player.drop(shulker, false);
-        }
+        addOrDrop(player, shulker);
     }
 
     private static int executeGiveFiltered(ServerPlayer player, FilterMode mode, GiveAmount amount) {
@@ -531,9 +571,7 @@ public class HopperFillCommand {
                 shulker.set(DataComponents.CUSTOM_NAME, Component.literal(label).withStyle(ChatFormatting.RESET));
             }
 
-            if (!player.getInventory().add(shulker)) {
-                player.drop(shulker, false);
-            }
+            addOrDrop(player, shulker);
             boxesGiven++;
         }
 
